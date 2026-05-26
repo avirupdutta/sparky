@@ -1,4 +1,4 @@
-import "../shared/styles.css";
+import "@/shared/styles.css";
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Button } from "@/components/ui/button";
@@ -53,14 +53,14 @@ function PopupApp() {
               value={settings.endpointUrl}
               onChange={(event) => setSettings({ ...settings, endpointUrl: event.target.value })}
               onBlur={() => void updateSettings({ endpointUrl: settings.endpointUrl })}
-              placeholder="http://localhost:11434/api/generate"
+              placeholder="http://localhost:1234/v1/chat/completions"
             />
           </div>
 
           <p className="rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground">{status}</p>
 
           <Button variant="outline" className="w-full" onClick={() => chrome.runtime.openOptionsPage()}>
-            Open full settings
+            Open test and full settings
           </Button>
         </CardContent>
       </Card>

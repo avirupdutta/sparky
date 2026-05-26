@@ -4,6 +4,18 @@ export type CompletionProvider = {
   complete(request: CompletionRequest, settings: ExtensionSettings): Promise<CompletionResponse>;
 };
 
+type OpenAiCompatibleResponse = {
+  choices?: Array<{
+    text?: string;
+    message?: {
+      content?: string;
+    };
+  }>;
+  response?: string;
+  completion?: string;
+  text?: string;
+};
+
 const MOCK_SUFFIXES = [
   " and make it easy to understand.",
   " with a clear next step.",
@@ -23,8 +35,18 @@ export class LocalHttpCompletionProvider implements CompletionProvider {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: settings.modelName || undefined,
-          prompt: request.textBeforeCursor,
-          suffix: request.textAfterCursor,
+          messages: [
+            {
+              role: "system",
+              content: "You are an inline autocomplete engine. Return only the next few words that should be inserted at the cursor. Do not explain."
+            },
+            {
+              role: "user",
+              content: `Complete the text at the cursor. Return only the continuation.\n\nText before cursor:\n${request.textBeforeCursor}\n\nText after cursor:\n${request.textAfterCursor}`
+            }
+          ],
+          temperature: 0.2,
+          max_tokens: 24,
           stream: false
         })
       });
@@ -33,8 +55,8 @@ export class LocalHttpCompletionProvider implements CompletionProvider {
         return this.mockCompletion(request);
       }
 
-      const data = (await response.json()) as { response?: string; completion?: string; text?: string };
-      const suggestion = String(data.response ?? data.completion ?? data.text ?? "").trimStart();
+      const data = (await response.json()) as OpenAiCompatibleResponse;
+      const suggestion = this.extractSuggestion(data).trimStart();
 
       if (!suggestion) {
         return this.mockCompletion(request);
@@ -44,6 +66,17 @@ export class LocalHttpCompletionProvider implements CompletionProvider {
     } catch {
       return this.mockCompletion(request);
     }
+  }
+
+  private extractSuggestion(data: OpenAiCompatibleResponse): string {
+    return String(
+      data.choices?.[0]?.message?.content ??
+        data.choices?.[0]?.text ??
+        data.response ??
+        data.completion ??
+        data.text ??
+        ""
+    );
   }
 
   private mockCompletion(request: CompletionRequest): CompletionResponse {

@@ -1,4 +1,4 @@
-import "../shared/styles.css";
+import "@/shared/styles.css";
 import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { DEFAULT_SETTINGS } from "@/shared/settings";
-import type { BackgroundToContentMessage, ExtensionSettings } from "@/shared/types";
+import type { BackgroundToContentMessage, CompletionRequest, ExtensionSettings } from "@/shared/types";
 
 function OptionsApp() {
   const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
   const [excludedDomainsText, setExcludedDomainsText] = useState("");
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [testText, setTestText] = useState("Write a short email asking my team to review");
+  const [testSuggestion, setTestSuggestion] = useState("");
+  const [testStatus, setTestStatus] = useState("Ready to test your local model.");
+  const [isTesting, setIsTesting] = useState(false);
 
   useEffect(() => {
     void chrome.runtime.sendMessage({ type: "settings/get" }).then((response: BackgroundToContentMessage) => {
@@ -35,6 +39,37 @@ function OptionsApp() {
       setExcludedDomainsText(response.payload.excludedDomains.join("\n"));
       setSavedAt(new Date().toLocaleTimeString());
     }
+  }
+
+  async function runCompletionTest() {
+    setIsTesting(true);
+    setTestSuggestion("");
+    setTestStatus("Asking the background worker for a completion...");
+
+    const payload: CompletionRequest = {
+      textBeforeCursor: testText,
+      textAfterCursor: "",
+      url: "chrome-extension://sparky-options-test",
+      elementKind: "textarea"
+    };
+
+    const response = (await chrome.runtime.sendMessage({ type: "completion/request", payload })) as BackgroundToContentMessage;
+    setIsTesting(false);
+
+    if (response.type === "completion/response") {
+      setTestSuggestion(response.payload.suggestion);
+      setTestStatus(response.payload.source === "local-http" ? "Received suggestion from LM Studio." : "LM Studio was unavailable, showing mock fallback.");
+      return;
+    }
+
+    setTestStatus(response.type === "completion/error" ? response.error : "Unexpected completion response.");
+  }
+
+  function acceptTestSuggestion() {
+    if (!testSuggestion) return;
+    setTestText(`${testText}${testSuggestion}`);
+    setTestSuggestion("");
+    setTestStatus("Suggestion accepted into the test textarea.");
   }
 
   const pendingSettings: ExtensionSettings = {
@@ -94,7 +129,7 @@ function OptionsApp() {
         <Card>
           <CardHeader>
             <CardTitle>Local model endpoint</CardTitle>
-            <CardDescription>Defaults to an Ollama-compatible generate endpoint. The adapter also accepts response, completion, or text fields.</CardDescription>
+            <CardDescription>Defaults to LM Studio's OpenAI-compatible chat completions endpoint.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -103,7 +138,7 @@ function OptionsApp() {
                 id="endpoint"
                 value={pendingSettings.endpointUrl}
                 onChange={(event) => setSettings({ ...settings, endpointUrl: event.target.value })}
-                placeholder="http://localhost:11434/api/generate"
+                placeholder="http://localhost:1234/v1/chat/completions"
               />
             </div>
             <div className="space-y-2">
@@ -112,8 +147,38 @@ function OptionsApp() {
                 id="model"
                 value={pendingSettings.modelName ?? ""}
                 onChange={(event) => setSettings({ ...settings, modelName: event.target.value })}
-                placeholder="llama3.2, qwen2.5, mistral, etc."
+                placeholder="Use the model id shown in LM Studio"
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Test completion textarea</CardTitle>
+            <CardDescription>Use this panel to test the background worker and your LM Studio endpoint without opening another website.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <textarea
+              className="min-h-36 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={testText}
+              onChange={(event) => setTestText(event.target.value)}
+              placeholder="Type a sentence to complete..."
+            />
+            {testSuggestion ? (
+              <div className="rounded-lg border bg-secondary p-3 text-sm text-secondary-foreground">
+                <p className="font-medium">Suggested continuation</p>
+                <p className="mt-1">{testSuggestion}</p>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={() => void runCompletionTest()} disabled={isTesting || testText.trim().length < 4}>
+                {isTesting ? "Testing..." : "Test completion"}
+              </Button>
+              <Button variant="outline" onClick={acceptTestSuggestion} disabled={!testSuggestion}>
+                Accept suggestion
+              </Button>
+              <p className="text-sm text-muted-foreground">{testStatus}</p>
             </div>
           </CardContent>
         </Card>

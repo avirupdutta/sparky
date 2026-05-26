@@ -4,7 +4,7 @@ export const SETTINGS_KEY = "sparky.autocomplete.settings";
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
   enabled: true,
-  endpointUrl: "http://localhost:11434/api/generate",
+  endpointUrl: "http://localhost:1234/v1/chat/completions",
   modelName: "",
   debounceMs: 250,
   acceptShortcut: "Tab",
