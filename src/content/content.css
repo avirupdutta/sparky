@@ -1,0 +1,24 @@
+.sparky-ghost {
+  position: fixed;
+  z-index: 2147483647;
+  pointer-events: none;
+  max-width: min(520px, calc(100vw - 24px));
+  overflow: hidden;
+  border-radius: 999px;
+  border: 1px solid rgba(20, 83, 45, 0.18);
+  background: rgba(247, 250, 231, 0.96);
+  color: rgba(20, 83, 45, 0.68);
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.18);
+  font: 13px/1.4 ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.sparky-ghost kbd {
+  margin-left: 8px;
+  border-radius: 6px;
+  background: rgba(20, 83, 45, 0.12);
+  color: rgba(20, 83, 45, 0.82);
+  font: 11px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  padding: 3px 5px;
+}
